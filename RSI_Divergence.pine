@@ -1,0 +1,69 @@
+//@version=5
+indicator("RSI Divergence — واگرایی مثبت و منفی", overlay=true)
+
+// ─────────────────────────────────────────────
+// ورودی‌ها (Inputs)
+// ─────────────────────────────────────────────
+rsiLen      = input.int(14,  "دوره RSI",              minval=1)
+lbL         = input.int(5,   "پیوت چپ  (Pivot Left)",  minval=1)
+lbR         = input.int(5,   "پیوت راست (Pivot Right)", minval=1)
+rangeMin    = input.int(5,   "حداقل فاصله پیوت‌ها",     minval=1)
+rangeMax    = input.int(60,  "حداکثر فاصله پیوت‌ها",    minval=1)
+showBull    = input.bool(true, "نمایش واگرایی مثبت (Bullish)")
+showBear    = input.bool(true, "نمایش واگرایی منفی (Bearish)")
+
+// ─────────────────────────────────────────────
+// محاسبه RSI
+// ─────────────────────────────────────────────
+osc = ta.rsi(close, rsiLen)
+
+// آیا فاصله بین دو پیوت در بازه مجاز است؟
+_inRange(cond) =>
+    bars = ta.barssince(cond == true)
+    rangeMin <= bars and bars <= rangeMax
+
+// ─────────────────────────────────────────────
+// پیوت‌های RSI
+// ─────────────────────────────────────────────
+plFound = not na(ta.pivotlow(osc, lbL, lbR))   // کف در RSI
+phFound = not na(ta.pivothigh(osc, lbL, lbR))  // سقف در RSI
+
+// مقدار پیوت قبلی
+oscPL  = valuewhen(plFound, osc[lbR], 1)
+oscPH  = valuewhen(phFound, osc[lbR], 1)
+
+// ─────────────────────────────────────────────
+// واگرایی مثبت (Regular Bullish):
+// قیمت کف پایین‌تر می‌سازد ولی RSI کف بالاتر
+// ─────────────────────────────────────────────
+oscHL   = osc[lbR] > oscPL and _inRange(plFound[1])
+priceLL = low[lbR] < valuewhen(plFound, low[lbR], 1)
+bullCond = showBull and priceLL and oscHL and plFound
+
+plot(plFound and bullCond ? osc[lbR] : na, offset=-lbR, title="خط واگرایی مثبت",
+     linewidth=2, color=(bullCond ? color.green : na), display=display.none)
+
+plotshape(bullCond ? low[lbR] : na, offset=-lbR, title="برچسب واگرایی مثبت",
+     text="Bull", style=shape.labelup, location=location.absolute,
+     color=color.green, textcolor=color.white, size=size.tiny)
+
+// ─────────────────────────────────────────────
+// واگرایی منفی (Regular Bearish):
+// قیمت سقف بالاتر می‌سازد ولی RSI سقف پایین‌تر
+// ─────────────────────────────────────────────
+oscLH   = osc[lbR] < oscPH and _inRange(phFound[1])
+priceHH = high[lbR] > valuewhen(phFound, high[lbR], 1)
+bearCond = showBear and priceHH and oscLH and phFound
+
+plot(phFound and bearCond ? osc[lbR] : na, offset=-lbR, title="خط واگرایی منفی",
+     linewidth=2, color=(bearCond ? color.red : na), display=display.none)
+
+plotshape(bearCond ? high[lbR] : na, offset=-lbR, title="برچسب واگرایی منفی",
+     text="Bear", style=shape.labeldown, location=location.absolute,
+     color=color.red, textcolor=color.white, size=size.tiny)
+
+// ─────────────────────────────────────────────
+// هشدارها (Alerts)
+// ─────────────────────────────────────────────
+alertcondition(bullCond, title="واگرایی مثبت RSI", message="RSI Bullish Divergence")
+alertcondition(bearCond, title="واگرایی منفی RSI", message="RSI Bearish Divergence")
